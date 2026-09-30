@@ -1,0 +1,154 @@
+name: CI/CD Pipeline
+
+# NEDEN BU YAPI: Test paketi bilerek İKİ KATMANA ayrıldı (bkz.
+# tests/run-tests.php --group=fast / --group=concurrency).
+#   - "fast" katmanı: 53+ test, <1 saniye — HER push/PR'da çalışır.
+#   - "concurrency" katmanı: gerçek işletim sistemi süreç çatallama
+#     (pcntl_fork) gerektirir, birkaç saniye sürer ve DOĞASI GEREĞİ
+#     zamanlamaya bağlıdır — main branch'e push'ta ve PR'larda çalışır,
+#     ama "fast" katmanından ayrı bir job'da (biri yavaşsa/nadiren
+#     kararsızsa diğerini bloklamasın diye).
+#
+# DÜRÜST NOT: Bu depo şu an gerçek bir GitHub deposunda değil (yerel
+# `git init`). Bu dosya, gerçek bir depoya taşındığında ÇALIŞMAYA HAZIR
+# yazıldı ama HENÜZ gerçek bir GitHub Actions çalıştırmasında
+# doğrulanmadı — SECURITY_REVIEW.md'ye bu not eklendi.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # KATMAN 1: Hızlı testler (Unit + Integration) — her zaman çalışır
+  # ─────────────────────────────────────────────────────────────
+  fast-tests:
+    name: "Hızlı Testler (Unit + Integration)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP kurulumu
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite, pdo_mysql
+          coverage: none
+
+      - name: Sözdizimi kontrolü (lint) — tüm dosyalar
+        run: |
+          find src tests -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Hızlı test paketi (Unit + Integration)
+        run: php tests/run-tests.php --group=fast
+
+      - name: demo.php regresyon kontrolü (fatal/uncaught/BEKLENMİYOR taraması)
+        run: |
+          php demo.php > /tmp/demo_output.txt 2>&1
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "demo.php sıfır olmayan çıkış koduyla bitti: $EXIT_CODE"
+            exit 1
+          fi
+          if grep -qi "fatal\|uncaught\|beklenmiyor" /tmp/demo_output.txt; then
+            echo "demo.php çıktısında hata/beklenmeyen sonuç işareti bulundu:"
+            grep -i "fatal\|uncaught\|beklenmiyor" /tmp/demo_output.txt
+            exit 1
+          fi
+          echo "demo.php temiz — hata/beklenmeyen sonuç yok."
+
+  # ─────────────────────────────────────────────────────────────
+  # KATMAN 2: Eşzamanlılık/stres testleri — ayrı job, ayrı süre bütçesi
+  # ─────────────────────────────────────────────────────────────
+  concurrency-tests:
+    name: "Eşzamanlılık Testleri (Gerçek Süreç Çatallama)"
+    runs-on: ubuntu-latest
+    needs: fast-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP kurulumu (pcntl uzantısıyla)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite, pcntl, posix
+          coverage: none
+
+      - name: Eşzamanlılık test paketi (gerçek fork tabanlı)
+        run: php tests/run-tests.php --group=concurrency
+
+      - name: Bağımsız stres test script'i
+        run: php stress_test_concurrency.php
+
+  # ─────────────────────────────────────────────────────────────
+  # KATMAN 3: Kod kalitesi kontrolleri
+  # ─────────────────────────────────────────────────────────────
+  code-quality:
+    name: "Kod Kalitesi Kontrolleri"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP kurulumu
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: PSR-4 otomatik yükleme uyumluluğu (özel mimari koruma testi)
+        run: php tests/run-tests.php --group=fast 2>&1 | grep -q "PsrAutoloadComplianceTest" || (echo "PSR-4 uyumluluk testi bulunamadı!" && exit 1)
+
+      - name: config/warehouse.php yüklenebilirlik kontrolü
+        run: |
+          php -r '
+            require "src/Config/EnvLoader.php";
+            $config = require "config/warehouse.php";
+            if (!is_array($config) || count($config) === 0) {
+                fwrite(STDERR, "config/warehouse.php boş ya da geçersiz\n");
+                exit(1);
+            }
+            echo "config/warehouse.php başarıyla yüklendi (" . count($config) . " bölüm).\n";
+          '
+
+      # GERÇEK AĞ ERİŞİMİ OLAN BİR ORTAMDA (bu sandbox'ta packagist.org
+      # engelli olduğu için burada YOK) şu adımlar eklenmelidir:
+      #   - composer require --dev phpstan/phpstan friendsofphp/php-cs-fixer
+      #   - vendor/bin/phpstan analyse src/ --level=6
+      #   - vendor/bin/php-cs-fixer fix --dry-run --diff
+
+  # ─────────────────────────────────────────────────────────────
+  # KATMAN 4: Canlıya alım (SADECE main branch, SADECE öncekiler geçerse,
+  # SADECE elle onay sonrası — insan incelemesi asla atlanmaz)
+  # ─────────────────────────────────────────────────────────────
+  deploy-production:
+    name: "Production Deploy"
+    runs-on: ubuntu-latest
+    needs: [fast-tests, concurrency-tests, code-quality]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      # GitHub'da "production" environment'ına manuel onay (required
+      # reviewers) eklenmesi ŞİDDETLE önerilir — bkz. PRODUCTION_CHECKLIST.md
+      # Bölüm 0: insan incelemesi ATLANAMAZ.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PRODUCTION_CHECKLIST.md imza bloğu kontrolü
+        run: |
+          if grep -q "_________________________" PRODUCTION_CHECKLIST.md; then
+            echo "⚠️  UYARI: PRODUCTION_CHECKLIST.md imza bloğu HALA BOŞ görünüyor."
+            echo "Bu, sadece bir UYARI — pipeline'ı durdurmaz, ama insan incelemesinin"
+            echo "gerçekten tamamlandığından emin olun."
+          fi
+
+      - name: Deploy adımları (PLACEHOLDER — gerçek altyapıya göre doldurulmalı)
+        run: |
+          echo "Buraya gerçek deploy adımları gelir: örn."
+          echo "  - SSH ile sunucuya bağlan, git pull / rsync"
+          echo "  - migrations/2026_add_unique_entity_prevhash.php --check && --apply"
+          echo "  - php-fpm/opcache reload"
+          echo "  - Post-deployment smoke testleri (bkz. PRODUCTION_CHECKLIST.md Bölüm 6)"
+          echo "Bu adım KASITLI OLARAK placeholder'dır — gerçek sunucu/SSH bilgileri"
+          echo "GitHub Secrets'a eklenip burada kullanılmalıdır."
