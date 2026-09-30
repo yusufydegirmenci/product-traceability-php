@@ -100,14 +100,16 @@ jobs:
       - name: PSR-4 otomatik yükleme uyumluluğu (özel mimari koruma testi)
         run: php tests/run-tests.php --group=fast 2>&1 | grep -q "PsrAutoloadComplianceTest" || (echo "PSR-4 uyumluluk testi bulunamadı!" && exit 1)
 
-      - name: .env.example ile config/warehouse.php senkronizasyonu kontrolü
+      - name: config/warehouse.php yüklenebilirlik kontrolü
         run: |
           php -r '
+            require "src/Config/EnvLoader.php";
             $config = require "config/warehouse.php";
-            $envExample = file_get_contents(".env.example");
-            $flatKeys = [];
-            array_walk_recursive($config, function($v, $k) use (&$flatKeys) { });
-            echo "config/warehouse.php başarıyla yüklendi.\n";
+            if (!is_array($config) || count($config) === 0) {
+                fwrite(STDERR, "config/warehouse.php boş ya da geçersiz\n");
+                exit(1);
+            }
+            echo "config/warehouse.php başarıyla yüklendi (" . count($config) . " bölüm).\n";
           '
 
       # GERÇEK AĞ ERİŞİMİ OLAN BİR ORTAMDA (bu sandbox'ta packagist.org
