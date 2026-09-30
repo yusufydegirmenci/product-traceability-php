@@ -1,0 +1,49 @@
+parameters:
+    # ══════════════════════════════════════════════════════════════
+    # DÜRÜST NOT: Bu dosya, packagist.org bu sandbox'ta erişilemez
+    # (host_not_allowed) olduğu için GERÇEKTEN ÇALIŞTIRILAMADI/DOĞRULANAMADI.
+    # Format ve seçenekler PHPStan'ın resmi dokümantasyonuna göre doğru
+    # yazıldı, ama "sıfır hata verir" garantisi VERİLEMEZ — bkz.
+    # ARCHITECTURE.md Bölüm 5, madde 5 (insan incelemesi gereken maddeler).
+    #
+    # Gerçek ortamda çalıştırmak için:
+    #   composer require --dev phpstan/phpstan
+    #   vendor/bin/phpstan analyse
+    # ══════════════════════════════════════════════════════════════
+
+    level: 8
+
+    paths:
+        - src
+        - tests
+        - config
+        - tools
+        - migrations
+
+    excludePaths:
+        - src/Ledger/*Exception.php  # tek satırlık, işaretsiz exception sınıfları — analiz değeri düşük
+
+    # Seviye 8: null-safety, tip uyumsuzlukları, tanımsız metot/özellik
+    # erişimleri dahil en katı denetimlerin çoğu aktif. Seviye 9 (max),
+    # mixed tip kullanımını da tamamen yasaklar — bu proje PDO::fetch()
+    # gibi doğası gereği mixed/array dönen çağrılarla yoğun çalıştığı
+    # için (özellikle Ledger/ katmanı), 9 yerine 8 seçildi; her PDO
+    # sonucunu ayrı DTO/value object'e sarmak ayrı bir refactor kararı
+    # gerektirir (bkz. ReportingService god-class notu, ARCHITECTURE.md).
+
+    checkMissingIterableValueType: false  # array<...> tip belirtimleri henüz eklenmedi (bilinçli, gelecek iş)
+    checkGenericClassInNonGenericObjectType: false
+
+    ignoreErrors:
+        # PDO'nun fetch()/fetchColumn() dönüş tipleri doğası gereği
+        # mixed/false karışıktır — bu, kodun bir hatası değil, PDO'nun
+        # kendi imzasının (PHP çekirdeği) bir özelliğidir.
+        - '#Method .*::.* should return .* but returns mixed#'
+        -
+            message: '#Call to an undefined method PDOStatement::.*#'
+            path: src/Ledger/*.php
+
+    tmpDir: .phpstan-cache
+
+    parallel:
+        maximumNumberOfProcesses: 4

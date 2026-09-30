@@ -1,0 +1,10 @@
+urun_id,urun_adi,check_type,full_weight_g,empty_weight_g,unit_count,tolerance_pct,not
+1,Sample Face Cream 50ml,consumable_range,,,,5,dolu/bos agirligi gir
+2,Sample Serum 30ml,consumable_range,,,,5,dolu/bos agirligi gir
+3,Sample Supplement Jar,consumable_range,,,,5,dolu/bos agirligi gir
+4,Sample Coffee Sachet Box,consumable_range,,,,5,dolu/bos agirligi gir
+5,Sample Hygiene Pads,consumable_range,,,,5,adet bazli urun - unit_count gir
+6,Sample Shaker Bottle,fixed_match,,,,5,sabit urun - referans agirligi gir
+7,Sample Printed Agenda,fixed_match,,,,5,basili urun tuketilmez - referans agirligi gir
+8,Sample Device,fixed_match,,,,5,cihaz/aksesuar - referans agirligi gir
+9,Sample Gift Card,exempt,,,,5,agirlik kontrolu yok

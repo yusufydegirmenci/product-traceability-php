@@ -1,0 +1,5 @@
+.env
+*.sqlite
+stress_errors.log
+staging_*.sqlite
+*.log
