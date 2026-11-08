@@ -19,17 +19,6 @@ This is my design for tracing physical products from the warehouse door to the d
 - **Operations:** shift handover lockout, cycle counts, audit-readiness report, privacy-compliance service, notifications
 - **Configurable thresholds:** every limit lives in `config/warehouse.php` and can be overridden from `.env` without code changes
 
-## Technology and infrastructure
-
-- **Language:** plain PHP, 8.1 or newer. The CI job runs on 8.2. There is no Composer and no framework, so there is nothing to install besides PHP itself.
-- **Database:** everything goes through PDO. There are two schemas, one for **SQLite** (the default, used by the tests and the demo) and one for **MySQL** (`schema/`). The CI job loads both extensions, `pdo_sqlite` and `pdo_mysql`.
-- **Tamper evidence:** each event stores an HMAC-SHA256 of its content together with the previous event's hash. If someone edits an old row, the chain no longer verifies.
-- **Identifiers:** GS1 GTIN with check digits, SSCC and Digital Link URLs, all written in this repo (`src/Gs1`).
-- **Configuration:** `.env` for the database, the HMAC key and the thresholds. A small loader and validator live in `src/Config`.
-- **Tests:** a test runner I wrote (`tests/run-tests.php`) with unit, integration and concurrency groups. The concurrency tests fork real processes with `pcntl`, so they need Linux or macOS.
-- **CI:** a GitHub Actions workflow in `.github/workflows/main.yml` runs the fast tests on every push and the concurrency tests in a separate job. Read the comment at the top of that file before trusting it: it says the workflow was written to be ready but had not been run on GitHub at that time.
-- **Static analysis:** a `phpstan.neon` is included, but PHPStan is not part of the CI job yet.
-
 ## Project layout
 ```
 src/Gs1/        GS1 identifiers (GTIN, SSCC, Digital Link, serials)
