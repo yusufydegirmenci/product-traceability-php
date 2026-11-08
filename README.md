@@ -46,20 +46,6 @@ SECURITY_REVIEW.md    open review items for the security-critical modules
 PRODUCTION_CHECKLIST.md
 ```
 
-## Technology and infrastructure
-
-| Area | What is used | How |
-|---|---|---|
-| Language | **PHP 8.1+**, about 80 PHP files, no framework | Plain PHP with PSR-4 style namespaces under `src/`. |
-| Database | **SQLite** (default, zero setup) or **MySQL**, through **PDO** | Schemas in `schema/schema.sqlite.sql` and `schema/schema.mysql.sql`. The event table is append-only. |
-| Tamper evidence | **HMAC-SHA256** hash chain with a versioned key ring (`hash_hmac('sha256', ...)`) | Each event stores the hash of the previous one, so any edit breaks the chain. Fork attempts are detected and retried with backoff. |
-| Identifiers | GS1 standards | GTIN with check digit, SSCC, serials and GS1 Digital Link URLs. |
-| Configuration | `.env` file plus `config/warehouse.php` | Every threshold has a default and can be overridden from `.env`. |
-| Tests | Own runner (`tests/run-tests.php`) with Unit, Integration and Concurrency groups | The concurrency tests fork real processes with `pcntl` to provoke race conditions. |
-| Static analysis | PHPStan (`phpstan.neon`) | Configured but not verified in a run; see `ARCHITECTURE.md`. |
-| CI | GitHub Actions (`.github/workflows/main.yml`) | A fast job on every push and PR, and a separate concurrency job. Not yet verified in a real run. |
-| Dependencies | None at runtime (no Composer packages) | Only built-in PHP extensions (`pdo_sqlite` or `pdo_mysql`, `pcntl` for tests). |
-
 ## Run it
 Requires PHP 8.1+ with `pdo_sqlite`; `pcntl` is needed for the concurrency tests.
 
