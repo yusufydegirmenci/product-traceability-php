@@ -1,5 +1,9 @@
 # Product Traceability System — Reference Architecture
 
+![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php&logoColor=white) ![Tests](https://img.shields.io/badge/tests-70-2EAD33) ![Status](https://img.shields.io/badge/status-prototype-orange) ![DB](https://img.shields.io/badge/DB-SQLite%20%7C%20MySQL-4479A1)
+
+**Contents:** [What it does](#what-it-does) · [Project layout](#project-layout) · [Run it](#run-it) · [Design rules](#three-design-rules) · [Not covered](#not-covered-on-purpose)
+
 **Version: v1.4-prototype** · PHP 8 · SQLite / MySQL · 70 automated tests
 
 A tamper-evident, chain-of-custody traceability design for physical products: from warehouse intake, to packaging and shipping, to dealers and returns. Every unit (or lot) has a GS1-compatible identity and an append-only, hash-chained event history, so "who touched what, when" can be reconstructed and verified later.
@@ -43,6 +47,14 @@ php tests/run-tests.php --group=concurrency  # real multi-process race tests
 php demo.php                                 # walkthrough of the scenarios
 ```
 Copy `.env.example` to `.env` to override thresholds or set the database and HMAC key. Never commit `.env`.
+
+### Step by step (first time)
+
+1. Install PHP 8.1 or newer and enable `pdo_sqlite` (`php -m` lists the loaded extensions).
+2. Clone the repo: `git clone https://github.com/yusufydegirmenci/product-traceability-php` and `cd product-traceability-php`.
+3. Run `php tests/run-tests.php --group=fast`. It finishes in about a second and should end without failures.
+4. Run `php demo.php` to watch the scenarios play out.
+5. Optional: install `pcntl` and run `php tests/run-tests.php --group=concurrency` for the multi-process race tests (Linux and macOS only).
 
 ## Three design rules
 1. **Claims are not facts.** What a customer or dealer says happened is stored as a claim and never mixed with verified system or carrier events.
