@@ -19,6 +19,20 @@ This is my design for tracing physical products from the warehouse door to the d
 - **Operations:** shift handover lockout, cycle counts, audit-readiness report, privacy-compliance service, notifications
 - **Configurable thresholds:** every limit lives in `config/warehouse.php` and can be overridden from `.env` without code changes
 
+## Technology and infrastructure
+
+| Area | What is used | How |
+|---|---|---|
+| Language | **PHP 8.1+**, about 80 PHP files, no framework | Plain PHP with PSR-4 style namespaces under `src/`. The CI job runs on 8.2. |
+| Database | **SQLite** (default, zero setup) or **MySQL**, through **PDO** | Schemas in `schema/schema.sqlite.sql` and `schema/schema.mysql.sql`. The event table is append-only. |
+| Tamper evidence | **HMAC-SHA256** hash chain (`hash_hmac('sha256', ...)`) | Each event stores the hash of the previous one, so any edit breaks the chain. Fork attempts are detected and retried with backoff. |
+| Identifiers | GS1 standards | GTIN with check digit, SSCC, serials and GS1 Digital Link URLs. |
+| Configuration | `.env` file plus `config/warehouse.php` | Every threshold has a default and can be overridden from `.env`. |
+| Tests | Own runner (`tests/run-tests.php`) with Unit, Integration and Concurrency groups | The concurrency tests fork real processes with `pcntl` to provoke race conditions, so they need Linux or macOS. |
+| Static analysis | PHPStan (`phpstan.neon`) | Configured, but not part of the CI job yet. |
+| CI | GitHub Actions (`.github/workflows/main.yml`) | A fast job on every push and PR, and a separate concurrency job. The comment at the top of the file says it had not been run on GitHub when it was written. |
+| Dependencies | None at runtime (no Composer packages) | Only built-in PHP extensions (`pdo_sqlite` or `pdo_mysql`, `pcntl` for tests). |
+
 ## Project layout
 ```
 src/Gs1/        GS1 identifiers (GTIN, SSCC, Digital Link, serials)
