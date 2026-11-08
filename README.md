@@ -1,5 +1,7 @@
 # Product Traceability System — Reference Architecture
 
+![PHP 8](https://img.shields.io/badge/PHP-8.1%2B-777bb4) ![Tests](https://img.shields.io/badge/tests-70-informational) ![Status](https://img.shields.io/badge/status-prototype-orange) ![Database](https://img.shields.io/badge/DB-SQLite%20%7C%20MySQL-4479a1)
+
 **Version: v1.4-prototype** · PHP 8 · SQLite / MySQL · 70 automated tests
 
 A tamper-evident, chain-of-custody traceability design for physical products: from warehouse intake, to packaging and shipping, to dealers and returns. Every unit (or lot) has a GS1-compatible identity and an append-only, hash-chained event history, so "who touched what, when" can be reconstructed and verified later.
